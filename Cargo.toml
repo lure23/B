@@ -1,0 +1,124 @@
+[package]
+name = "vl53l5cx_uld"   # name matters; shows in the parent 'Cargo.toml'
+edition = "2021"
+rust-version = "1.80"
+    # 1.80: checks for validity of configuration names
+    # 1.77.0 provides `cargo::` syntax for build script output instructions
+publish = false
+
+# 'esp-hal' recommends only using 'release', so...
+# Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
+[profile.release]
+#debug         = "line-tables-only"  # not enough for RTT: << WARN probe_rs::util::rtt: Insufficient DWARF info; compile your program with `debug = 2` to enable location info. <<
+debug = 2
+#debug-assertions = true     # since we .. kind-of only live in the 'release'
+#codegen-units = 1      # LLVM can perform better optimizations using a single thread
+#codegen-units = 16
+#opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
+#lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
+                        #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
+
+[dependencies]
+defmt           = { version = "0.3.10", optional = true }
+strum           = { version = "0.27.1", default-features = false, features = ["derive"] }
+
+esp-hal         = { version = "1.0.0-beta.0", features = ["esp32c3"], optional = true }  # "defmt"
+    # needed for its 'Rate' (with 'esp_hal_api' feature); also under 'dev-dependencies'
+
+#[dev-dependencies]
+# Rust provides no mechanism for conditional 'dev-dependencies'. Thus, we introduce them here.
+defmt-rtt       = { version = "0.4.1", optional = true }
+esp-println     = { version = "0.13.1", features = ["esp32c3"], optional = true }   # "defmt-espflash"
+
+[dev-dependencies]
+#embedded-test   = { version = "0.6.0", features = ["defmt"] }
+
+esp-backtrace   = { version = "0.15.1", features = ["exception-handler", "panic-handler", "esp32c3",
+    # 7-Feb-25: 'esp-backtrace' DOES NOT ACT WELL with 'esp-println' and 'semihosting'; it keeps looping instead of
+    #           terminating (thus, "semihosting" disabled; can be enabled for 'probe-rs', though).
+    #           tbd. [ ] consider reporting
+] } # "defmt", "semihosting"
+
+esp-hal         = { version = "1.0.0-beta.0", features = ["esp32c3", "unstable"] }  # "defmt"
+    # "unstable" needed for 'delay' module
+
+semihosting     = { version = "0.1.19" }
+    # "portable-atomic":
+    #   <<
+    #       To use the 'panic-unwind' feature on such targets (e.g., RISC-V without A-extension [i.e. C3]),
+    #       you need to enable this feature.
+    #   <<
+    # Reading: since we use 'panic-abort', we don't benefit from it.
+
+[build-dependencies]
+anyhow          = "1.0.97"
+itertools       = "0.14.0"
+serde           = { version = "1.0", features = ["derive"] }
+toml            = "0.8.20"
+
+# C compile-time features
+#
+# Note: The names reflect the C side #define's (except for being lower case)
+#
+# Features define what fields are available in the ranging output. They actually drive the C library compilation.
+# More fields means more I2C comms and more code size, so you will benefit from keeping the list tight.
+#
+# NOTE:
+#   Some features are connected to others. We check this in 'build.rs'.
+#
+[features]
+ambient_per_spad=[]     # VL53L5CX_DISABLE_AMBIENT_PER_SPAD
+nb_spads_enabled=[]     # VL53L5CX_DISABLE_NB_SPADS_ENABLED
+signal_per_spad=[]      # VL53L5CX_DISABLE_SIGNAL_PER_SPAD
+range_sigma_mm=[]       # VL53L5CX_DISABLE_RANGE_SIGMA_MM
+distance_mm=[]          # VL53L5CX_DISABLE_DISTANCE_MM
+reflectance_percent=[]  # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
+
+# Keep always enabled. You need it to know which results are valid.
+target_status = []      # VL53L5CX_DISABLED_TARGET_STATUS
+
+# Automatically enabled when having multiple zones.
+nb_targets_detected=[]  # VL53L5CX_DISABLE_NB_TARGET_DETECTED
+
+# The code always compiles for at least 1 "target per zone" (how many objects can be detected, in the same conical zone).
+# If you want to see more, enable these:
+targets_per_zone_2=["nb_targets_detected"]
+targets_per_zone_3=["nb_targets_detected"]
+targets_per_zone_4=["nb_targets_detected"]
+
+_defmt = ["dep:defmt", "esp-hal/defmt", "esp-backtrace/defmt", "esp-println?/defmt-espflash"]
+
+# Provide interfacing to 'esp_hal::time::Rate'
+esp_hal_api = ["dep:esp-hal"]
+
+default = ["target_status"]
+
+# Enable to use 'main' branch (non-released API changes); also enable the '[patch.crates-io]' section, below.
+esp-hal-next = []
+
+# Features for the examples only! Rust gives no mechanism to have features that would apply only to 'examples/' (but
+# not be exposed to downstream projects). In downstream projects, just IGNORE THESE: THE LIBRARY DOES NOT USE THEM!!
+#
+# Note: 'esp-backtrace/defmt' kept here, in case we want to try 'esp-backtrace/println' on the former.
+run_with_espflash = ["_defmt", "dep:esp-println"]
+run_with_probe_rs = ["_defmt", "dep:defmt-rtt",
+    "esp-backtrace/semihosting"
+]
+
+# Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
+# this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
+#
+[[example]]
+name = "m3"
+required-features = ["distance_mm"]   # + "targets_per_zone_{2..4}"
+
+[[test]]
+name = "plain_test"
+harness = false
+required-features = ["defmt"]
+
+# Enable to use latest 'main' (also enable 'esp-hal-next' feature, if fails to build, otherwise)
+#|[patch.crates-io]
+#|esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
+#|esp-println     = { git = "https://github.com/esp-rs/esp-hal.git" }
