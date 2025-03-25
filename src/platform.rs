@@ -10,13 +10,11 @@ use defmt::{trace, warn};
 use core::{
     ffi::c_void,
     slice,
-    result::Result as CoreResult,
 };
 
 use crate::I2cAddr;
 use crate::uld_raw::{
     ST_OK,
-    ST_ERROR as ST_ERR,
     VL53L5CX_Platform
 };
 
@@ -40,8 +38,8 @@ pub trait Platform {
     //          - bool              | just feels... wrong in Rust
     //          - Option            | nah
     //
-    fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) -> CoreResult<(),()>;
-    fn wr_bytes(&mut self, index: u16, vs: &[u8]) -> CoreResult<(),()>;
+    fn rd_bytes(&mut self, index: u16, buf: &mut [u8]);
+    fn wr_bytes(&mut self, index: u16, vs: &[u8]);
     fn delay_ms(&mut self, ms: u32);
 
     // This is our addition (vendor API struggles with the concept). Once we have changed the I2C
@@ -76,10 +74,9 @@ pub extern "C" fn VL53L5CX_RdByte(
     addr: u16,          // VL index
     p_value: *mut u8
 ) -> u8 {
-    with(pt, |p|
-        match p.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_value, 1_usize) }) {
-            Ok(()) => ST_OK,
-            Err(_) => ST_ERR
+    with(pt, |p| {
+        p.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_value, 1_usize) });
+        ST_OK
     })
 }
 
@@ -94,9 +91,9 @@ pub extern "C" fn VL53L5CX_WrByte(
     addr: u16,      // VL index
     v: u8
 ) -> u8 {
-    with(pt, |p| match p.wr_bytes(addr, &[v]) {
-        Ok(()) => ST_OK,
-        Err(_) => ST_ERR
+    with(pt, |p| {
+        p.wr_bytes(addr, &[v]);
+        ST_OK
     })
 }
 
@@ -113,9 +110,9 @@ pub extern "C" fn VL53L5CX_RdMulti(
     p_values: *mut u8,
     size: u32   // size_t
 ) -> u8 {
-    with(pt, |p| match p.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_values, size as usize) } ) {
-        Ok(()) => ST_OK,
-        Err(_) => ST_ERR
+    with(pt, |p| {
+        p.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_values, size as usize) } );
+        ST_OK
     })
 }
 
@@ -132,9 +129,9 @@ pub extern "C" fn VL53L5CX_WrMulti(
     p_values: *mut u8,  // *u8 (const)
     size: u32   // actual values fit 16 bits; size_t
 ) -> u8 {
-    with(pt, |p| match p.wr_bytes(addr, unsafe { slice::from_raw_parts(p_values, size as usize) } ) {
-        Ok(()) => ST_OK,
-        Err(_) => ST_ERR
+    with(pt, |p| {
+        p.wr_bytes(addr, unsafe { slice::from_raw_parts(p_values, size as usize) } );
+        ST_OK
     })
 }
 

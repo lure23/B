@@ -181,7 +181,7 @@ impl<const DIM: usize> RangingConfig<DIM> {
         // Set the resolution first. UM2884 (Rev 5) says:
         //  "['..._set_resolution()'] must be used before updating the ranging frequency"
 
-        match unsafe { vl53l5cx_set_resolution(vl, ULD_RESO as u8) } {  // reso value: 16 (4x4); 64 (8x8)
+        /***match unsafe { vl53l5cx_set_resolution(vl, ULD_RESO as u8) } {  // reso value: 16 (4x4); 64 (8x8)
             ST_OK => Ok(()),
             e => Err(Error(e))
         }?;
@@ -214,7 +214,7 @@ impl<const DIM: usize> RangingConfig<DIM> {
         match unsafe { vl53l5cx_set_target_order(vl, self.target_order.as_uld() as _) } {
             ST_OK => Ok(()),
             e => Err(Error(e))
-        }?;
+        }?;***/
 
         Ok(())
     }

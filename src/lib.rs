@@ -8,7 +8,6 @@ mod results_data;
 mod uld_raw;
 pub mod units;
 
-#[cfg(feature = "_defmt")]
 use defmt::{debug, error, Format};
 
 use core::{
@@ -229,9 +228,9 @@ impl<P: Platform + 'static> VL53L5CX<P> {
 fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
     let mut buf: [u8;2] = [u8::MAX;2];
 
-    pl.wr_bytes(0x7fff, &[0x00])?;
-    pl.rd_bytes(0, &mut buf)?;   // [dev_id, rev_id]
-    pl.wr_bytes(0x7fff, &[0x02])?;
+    pl.wr_bytes(0x7fff, &[0x00]);
+    pl.rd_bytes(0, &mut buf);   // [dev_id, rev_id]
+    pl.wr_bytes(0x7fff, &[0x02]);
 
     Ok( (buf[0], buf[1]) )
 }

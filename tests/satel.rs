@@ -19,7 +19,7 @@ use esp_hal::{
 extern crate vl53l5cx_uld as uld;
 
 // Sneak in the platform implementation from 'examples'
-#[path="../examples/common.rs"]
+#[path= "~common.rs"]
 mod common;
 use common::MyPlatform;
 

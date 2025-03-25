@@ -1,5 +1,5 @@
 [package]
-name = "vl53l5cx_uld"   # name matters; shows in the parent 'Cargo.toml'
+name = "just_b"   # name matters; shows in the parent 'Cargo.toml'
 edition = "2021"
 rust-version = "1.80"
     # 1.80: checks for validity of configuration names
@@ -9,14 +9,7 @@ publish = false
 # 'esp-hal' recommends only using 'release', so...
 # Defaults -> https://doc.rust-lang.org/cargo/reference/profiles.html?highlight=incremental#release
 [profile.release]
-#debug         = "line-tables-only"  # not enough for RTT: << WARN probe_rs::util::rtt: Insufficient DWARF info; compile your program with `debug = 2` to enable location info. <<
 debug = 2
-#debug-assertions = true     # since we .. kind-of only live in the 'release'
-#codegen-units = 1      # LLVM can perform better optimizations using a single thread
-#codegen-units = 16
-#opt-level     = "s"     # optimize for binary size, but keep loop vectorization enabled
-#lto           = "thin"  # "can produce better optimized code, using whole-program analysis, at the cost of longer linking time."
-                        #   - thin: "similar to “fat”, but takes substantially less time to run [...]"
 
 [dependencies]
 defmt           = { version = "0.3.10", optional = true }
@@ -67,10 +60,6 @@ toml            = "0.8.20"
 #   Some features are connected to others. We check this in 'build.rs'.
 #
 [features]
-ambient_per_spad=[]     # VL53L5CX_DISABLE_AMBIENT_PER_SPAD
-nb_spads_enabled=[]     # VL53L5CX_DISABLE_NB_SPADS_ENABLED
-signal_per_spad=[]      # VL53L5CX_DISABLE_SIGNAL_PER_SPAD
-range_sigma_mm=[]       # VL53L5CX_DISABLE_RANGE_SIGMA_MM
 distance_mm=[]          # VL53L5CX_DISABLE_DISTANCE_MM
 reflectance_percent=[]  # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
 
@@ -118,7 +107,8 @@ harness = false
 required-features = ["defmt"]
 
 # Enable to use latest 'main' (also enable 'esp-hal-next' feature, if fails to build, otherwise)
-#|[patch.crates-io]
-#|esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
+[patch.crates-io]
+esp-backtrace   = { git = "https://github.com/esp-rs/esp-hal.git" }
 #|esp-hal         = { git = "https://github.com/esp-rs/esp-hal.git" }
-#|esp-println     = { git = "https://github.com/esp-rs/esp-hal.git" }
+esp-hal         = { git = "https://github.com/lure23/esp-hal.fork.git", branch="fix-assert" }
+esp-println     = { git = "https://github.com/esp-rs/esp-hal.git" }

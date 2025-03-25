@@ -76,14 +76,13 @@ impl State_HP_Idle {
 
         // Implementation based on ULD C API 'vl53l5cx_set_i2c_address'
 
-        platform::with(&mut self.uld.platform, |pl| -> core::result::Result<(),()> {
-            pl.wr_bytes(0x7fff, &[0])?;
-            pl.wr_bytes(0x4, &[addr.as_7bit()])?;
+        platform::with(&mut self.uld.platform, |pl| {
+            pl.wr_bytes(0x7fff, &[0]);
+            pl.wr_bytes(0x4, &[addr.as_7bit()]);
             pl.addr_changed(addr);
 
-            pl.wr_bytes(0x7fff, &[2])?;  // now with the new I2C address
-            Ok(())
-        }).expect("writing to I2C to succeed");
+            pl.wr_bytes(0x7fff, &[2]);  // now with the new I2C address
+        });
 
         // Further comms will happen to the new address. Let's still make a small access with the
         // new address, e.g. reading something.

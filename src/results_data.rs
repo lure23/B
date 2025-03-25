@@ -41,10 +41,6 @@ const TARGETS: usize =
 pub struct ResultsData<const DIM: usize> {      // DIM: 4,8
     // Metadata: DIMxDIM matrix, regardless of 'TARGETS'
     //
-    #[cfg(feature = "ambient_per_spad")]
-    pub ambient_per_spad: [[u32; DIM]; DIM],
-    #[cfg(feature = "nb_spads_enabled")]
-    pub spads_enabled: [[u32; DIM]; DIM],
     #[cfg(feature = "nb_targets_detected")]
     pub targets_detected: [[u8; DIM]; DIM],     // 1..{X in 'targets_per_zone_X' feature}
 
@@ -54,13 +50,6 @@ pub struct ResultsData<const DIM: usize> {      // DIM: 4,8
 
     #[cfg(feature = "distance_mm")]
     pub distance_mm: [[[u16; DIM]; DIM]; TARGETS],
-    #[cfg(feature = "range_sigma_mm")]
-    pub range_sigma_mm: [[[u16; DIM]; DIM]; TARGETS],
-
-    #[cfg(feature = "reflectance_percent")]
-    pub reflectance: [[[u8; DIM]; DIM]; TARGETS],
-    #[cfg(feature = "signal_per_spad")]
-    pub signal_per_spad: [[[u32; DIM]; DIM]; TARGETS],
 }
 
 impl<const DIM: usize> ResultsData<DIM> {
@@ -71,10 +60,6 @@ impl<const DIM: usize> ResultsData<DIM> {
     fn empty() -> Self {
 
         Self {
-            #[cfg(feature = "ambient_per_spad")]
-            ambient_per_spad: [[0;DIM];DIM],
-            #[cfg(feature = "nb_spads_enabled")]
-            spads_enabled: [[0;DIM];DIM],
             #[cfg(feature = "nb_targets_detected")]
             targets_detected: [[0;DIM];DIM],
 
@@ -83,13 +68,6 @@ impl<const DIM: usize> ResultsData<DIM> {
 
             #[cfg(feature = "distance_mm")]
             distance_mm: [[[0;DIM];DIM];TARGETS],
-            #[cfg(feature = "range_sigma_mm")]
-            range_sigma_mm: [[[0;DIM];DIM];TARGETS],
-
-            #[cfg(feature = "signal_per_spad")]
-            signal_per_spad: [[[0;DIM];DIM];TARGETS],
-            #[cfg(feature = "reflectance_percent")]
-            reflectance: [[[0;DIM];DIM];TARGETS],
         }
     }
 
@@ -160,10 +138,6 @@ impl<const DIM: usize> ResultsData<DIM> {
 
         // Metadata: DIMxDIM (just once)
         //
-        #[cfg(feature = "ambient_per_spad")]
-        into_matrix(&rr.ambient_per_spad, &mut self.ambient_per_spad);
-        #[cfg(feature = "nb_spads_enabled")]
-        into_matrix(&rr.nb_spads_enabled, &mut self.spads_enabled);
         #[cfg(feature = "nb_targets_detected")]
         into_matrix(&rr.nb_target_detected, &mut self.targets_detected);
 
@@ -180,13 +154,6 @@ impl<const DIM: usize> ResultsData<DIM> {
             |v: i16| -> u16 {
                 assert!(v >= 0, "Unexpected 'distance_mm' value: {} < 0", v); v as u16
             });
-            #[cfg(feature = "range_sigma_mm")]
-            into_matrix_o(&rr.range_sigma_mm, i, &mut self.range_sigma_mm[i]);
-
-            #[cfg(feature = "reflectance_percent")]
-            into_matrix_o(&rr.reflectance, i, &mut self.reflectance[i]);
-            #[cfg(feature = "signal_per_spad")]
-            into_matrix_o(&rr.signal_per_spad, i, &mut self.signal_per_spad[i]);
         }
 
         TempC(rr.silicon_temp_degc)

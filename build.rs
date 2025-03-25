@@ -7,12 +7,6 @@
 */
 use anyhow::*;
 
-use std::{
-    env,
-    fs,
-    process::Command
-};
-
 // Snippets need to be read in here (cannot do in "statement position")
 //
 include!("build_snippets/pins.in");
@@ -27,6 +21,12 @@ const CONFIG_H_NEXT: &str = "tmp/config.h.next";
 *       -> https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
 */
 fn main() -> Result<()> {
+    use std::{
+        env,
+        fs,
+        process::Command
+    };
+
     // Detect when IDE is running us:
     //  - Rust Rover:
     //      __CFBundleIdentifier=com.jetbrains.rustrover-EAP
@@ -82,10 +82,6 @@ fn main() -> Result<()> {
         //"targets_per_zone_2",
         //"targets_per_zone_3",
         //"targets_per_zone_4",
-
-        // "range_sigma_mm" relates to "distance_mm"
-        #[cfg(all(feature = "range_sigma_mm", not(feature = "distance_mm")))]
-        println!("cargo:warning=Feature 'range_sigma_mm' does not make sense without feature 'distance_mm' (which is not enabled)");
     }
 
     // Config sanity checks (if 'examples/*')
@@ -121,7 +117,7 @@ fn main() -> Result<()> {
     //
     // MUST BE BEFORE running the Makefile.
     //
-    // Note: Never run this on IDE builds - the features a person selects in the IDE UI don't necessarily match 
+    // Note: Never run this on IDE builds - the features a person selects in the IDE UI don't necessarily match
     //       what the real builds will be about.
     {
         use itertools::Itertools;
@@ -137,9 +133,7 @@ fn main() -> Result<()> {
         //
         // First group: metadata of the sensor (DIMxDIM, regardless of targets)
         //
-        #[cfg(not(feature = "ambient_per_spad"))]
         add!("VL53L5CX_DISABLE_AMBIENT_PER_SPAD");
-        #[cfg(not(feature = "nb_spads_enabled"))]
         add!("VL53L5CX_DISABLE_NB_SPADS_ENABLED");
         #[cfg(not(feature = "nb_targets_detected"))]
         add!("VL53L5CX_DISABLE_NB_TARGET_DETECTED");
@@ -150,11 +144,8 @@ fn main() -> Result<()> {
         add!("VL53L5CX_DISABLE_TARGET_STATUS");
         #[cfg(not(feature = "distance_mm"))]
         add!("VL53L5CX_DISABLE_DISTANCE_MM");
-        #[cfg(not(feature = "range_sigma_mm"))]
         add!("VL53L5CX_DISABLE_RANGE_SIGMA_MM");
-        #[cfg(not(feature = "reflectance_percent"))]
         add!("VL53L5CX_DISABLE_REFLECTANCE_PERCENT");
-        #[cfg(not(feature = "signal_per_spad"))]
         add!("VL53L5CX_DISABLE_SIGNAL_PER_SPAD");
 
         // 'motion_indicator' support is not implemented; always disable in C

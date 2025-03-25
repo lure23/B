@@ -22,38 +22,18 @@ use esp_hal::{
     time::{Instant, Rate}
 };
 
-extern crate vl53l5cx_uld as uld;
+extern crate just_b as uld;
+use uld::{
+    Result,
+    VL53L5CX,
+    RangingConfig,
+    units::*,
+};
 
 include!("./pins_gen.in");  // pins!
 
 mod common;
 use common::MyPlatform;
-
-use uld::{
-    Result,
-    VL53L5CX,
-    RangingConfig,
-    TargetOrder::CLOSEST,
-    Mode::AUTONOMOUS,
-    units::*,
-};
-
-#[main]
-fn main() -> ! {
-    #[cfg(feature="run_with_probe_rs")]
-    init_defmt();
-
-    match main2() {
-        Err(e) => {
-            panic!("Failed with ULD error code: {}", e);
-        },
-
-        Ok(()) => {
-            info!("End of ULD demo");
-            semihosting::process::exit(0);      // back to developer's command line
-        }
-    }
-}
 
 #[allow(non_snake_case)]
 struct Pins {
@@ -66,7 +46,11 @@ struct Pins {
 #[allow(non_upper_case_globals)]
 const I2C_SPEED: Rate = Rate::from_khz(400);        // use max 400
 
-fn main2() -> Result<()> {
+#[main]
+fn main() -> ! {
+    #[cfg(feature="run_with_probe_rs")]
+    init_defmt();
+
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
     #[allow(non_snake_case)]
@@ -98,7 +82,8 @@ fn main2() -> Result<()> {
         info!("Target powered off and on again.");
     }
 
-    let /*mut*/ vl = VL53L5CX::new_with_ping(pl)?.init()?;
+    let /*mut*/ vl = VL53L5CX::new_with_ping(pl).unwrap().init()
+        .expect("initialize to succeed");
 
     info!("Init succeeded");
 
@@ -112,15 +97,13 @@ fn main2() -> Result<()> {
 
     //--- ranging loop
     //
-    let freq = Rate::from_hz(4);    // 10
-
-    let c = RangingConfig::<4>::default()
-        .with_mode(AUTONOMOUS(5.ms(),HzU8(freq.as_hz() as u8)))
-        .with_target_order(CLOSEST);
+    let c = RangingConfig::<4>::default();
 
     let mut ring = vl.start_ranging(&c)
         .expect("to start ranging");
 
+    unreachable!();
+    #[cfg(not(all()))]
     for round in 0..3 {
         let t0= Instant::now();
 
@@ -145,21 +128,12 @@ fn main2() -> Result<()> {
         #[cfg(feature = "nb_targets_detected")]
         info!(".targets_detected: {}", res.targets_detected);
 
-        #[cfg(feature = "ambient_per_spad")]
-        info!(".ambient_per_spad: {}", res.ambient_per_spad);
-        #[cfg(feature = "nb_spads_enabled")]
-        info!(".spads_enabled:    {}", res.spads_enabled);
-        #[cfg(feature = "signal_per_spad")]
-        info!(".signal_per_spad:  {}", res.signal_per_spad);
-        #[cfg(feature = "range_sigma_mm")]
-        info!(".range_sigma_mm:   {}", res.range_sigma_mm);
         #[cfg(feature = "distance_mm")]
         info!(".distance_mm:      {}", res.distance_mm);
-        #[cfg(feature = "reflectance_percent")]
-        info!(".reflectance:      {}", res.reflectance);
     }
 
-    Ok(())
+    //Ok(())
+    loop {}
 }
 
 const D_PROVIDER: Delay = Delay::new();
