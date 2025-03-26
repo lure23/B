@@ -13,13 +13,8 @@
 *
 *   [*]: DS13754 - Rev 12, p.9
 */
-#[cfg(feature = "_defmt")]
-use defmt::panic;
-
 use crate::{
-    platform,
     state_ranging::{
-        RangingConfig,
         State_Ranging,
     },
     uld_raw::{
@@ -27,7 +22,6 @@ use crate::{
         VL53L5CX_Configuration
     },
     Error,
-    I2cAddr,
     Result,
     ST_OK
 };
@@ -60,38 +54,9 @@ impl State_HP_Idle {
     //---
     // Ranging (getting values)
     //
-    pub fn start_ranging<const DIM: usize>(/*move*/ self, cfg: &RangingConfig<DIM>) -> Result<State_Ranging<DIM>> {
-        let r = State_Ranging::transition_from(self, cfg)?;
+    pub fn start_ranging<const DIM: usize>(/*move*/ self) -> Result<State_Ranging<DIM>> {
+        let r = State_Ranging::transition_from(self)?;
         Ok(r)
-    }
-
-    /*
-    * Change the I2C address on-the-fly and continue the session with the new I2C address.
-    *
-    * Unlike other functions, we don't refer to the ULD C API because the changing of the address
-    * mechanism there.. is very.. intrusive(??). Instead, we do the full bytewise comms here, in
-    * Rust side, allowing us to make a callback in the middle of the dance. :)
-    */
-    pub fn set_i2c_address(&mut self, addr: &I2cAddr) -> Result<()> {
-
-        // Implementation based on ULD C API 'vl53l5cx_set_i2c_address'
-
-        platform::with(&mut self.uld.platform, |pl| {
-            pl.wr_bytes(0x7fff, &[0]);
-            pl.wr_bytes(0x4, &[addr.as_7bit()]);
-            pl.addr_changed(addr);
-
-            pl.wr_bytes(0x7fff, &[2]);  // now with the new I2C address
-        });
-
-        // Further comms will happen to the new address. Let's still make a small access with the
-        // new address, e.g. reading something.
-        //
-        let _ = self.i2c_no_op().map_err(|_| {
-            panic!("Device wasn't reached after its I2C address changed.");
-        });
-
-        Ok(())
     }
 
     /* I2C access without consequences
@@ -104,47 +69,8 @@ impl State_HP_Idle {
         }
     }
 
-    /*R not needed
-    pub(crate) fn borrow_uld(&self) -> &VL53L5CX_Configuration {
-        &self.uld
-    }*/
-
     pub(crate) fn borrow_uld_mut(&mut self) -> &mut VL53L5CX_Configuration {
         &mut self.uld
     }
-
-    /*** disabled (until we try/need low power)
-    // tbd. Does setting low power mode mean transitioning to 'LP_Idle'?  In that case, this should
-    //      be state transition for us (and 'get_power_mode' is not needed, since it's implied by
-    //      the Rust object the application has access to!
-
-    //---
-    // Maintenance; special use
-    //
-    pub fn get_power_mode(&mut self) -> Result<PowerMode> {
-        let mut tmp: u8 = 0;
-        match unsafe { vl53l5cx_get_power_mode(&mut self.vl, &mut tmp) } {
-            ST_OK => Ok(PowerMode::from_repr(tmp).unwrap()),
-            e => Err(Error(e))
-        }
-    }
-    pub fn set_power_mode(&mut self, v: PowerMode) -> Result<()> {
-        match unsafe { vl53l5cx_set_power_mode(&mut self.vl, v as u8) } {
-            ST_OK => Ok(()),
-            e => Err(Error(e))
-        }
-    }
-    ***/
-
-    // tbd. if exposing these, make them into a "dci" feature
-    //pub fn dci_read_data(index: u16, buf: &mut [u8]) { unimplemented!() }
-    //pub fn dci_write_data(index: u16, buf: &[u8]) { unimplemented!() }
-
-    // 'dci_replace_data' doesn't seem useful; easily reproduced using the 'read' and 'write'. Skip.
-
-    // Remaining to be implemented:
-    //  vl53l5cx_enable_internal_cp()
-    //  vl53l5cx_disable_internal_cp
-    //  vl53l5cx_set_VHV_repeat_count
-    //  vl53l5cx_get_VHV_repeat_count
 }
+

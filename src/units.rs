@@ -4,11 +4,7 @@
 *   - ability to pattern match; keep them apart from each other and integers
 *   - pleasurable syntax for providing config: '1.ms()', '5.Hz()'
 *
-* Note:
-*   - 'fugit' has duration (ms) and rate (Hz), but it is geared towards conversion rather than
-*     carrying. It's a no.
-*   - 'esp-hal' cas 'Rate' (Hz), since 1.0, but we are otherwise MCU-independent here, so.. perhaps (as a feature)
-*   - IF there is a public library that does these, happy to start using one.
+* IF there is a public library that does these, happy to start using one.
 */
 #[cfg(feature = "_defmt")]
 use defmt::{Format, Formatter};
@@ -52,14 +48,8 @@ impl TryFrom<&Rate> for HzU8 {
 #[cfg_attr(feature = "_defmt", derive(defmt::Format))]
 pub struct MsU16(pub u16);     // 'u16' enough to go to ~1min; vendor uses 'u32'
 
-// Input
-#[derive(Copy, Clone)]
-#[cfg_attr(feature = "_defmt", derive(defmt::Format))]
-pub struct PrcU8(pub u8);       // values 0..100
-
 pub trait ExtU32 {
     fn ms(self) -> MsU16;
-    fn prc(self) -> PrcU8;
 }
 
 impl ExtU32 for u32 {
@@ -67,12 +57,6 @@ impl ExtU32 for u32 {
     fn ms(self) -> MsU16 {
         assert!(self <= 0xffff);
         MsU16(self as u16)
-    }
-
-    #[inline]
-    fn prc(self) -> PrcU8 {
-        // Note: Not checking range since e.g. 150% is okay. Other code may limit the range, though.
-        PrcU8(self as u8)
     }
 }
 

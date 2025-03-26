@@ -23,11 +23,7 @@ use esp_hal::{
 };
 
 extern crate just_b as uld;
-use uld::{
-    VL53L5CX,
-    RangingConfig,
-    units::*,
-};
+use uld::{VL53L5CX, State_Ranging};
 
 include!("./pins_gen.in");  // pins!
 
@@ -96,13 +92,11 @@ fn main() -> ! {
 
     //--- ranging loop
     //
-    let c = RangingConfig::<4>::default();
-
-    let mut ring = vl.start_ranging(&c)
+    let mut ring: State_Ranging<4> = vl.start_ranging()
         .expect("to start ranging");
 
-    unreachable!();
-    #[cfg(not(all()))]
+    //unreachable!();
+
     for round in 0..3 {
         let t0= Instant::now();
 
@@ -116,6 +110,9 @@ fn main() -> ! {
             }
             blocking_delay_us(20);   // < 100us
         }
+
+        let x = ring.is_ready().unwrap();
+        assert!(x == true, "Interrupt seen but data isn't available");
 
         let (res, temp_degc) = ring.get_data()
             .expect("Failed to get data");
@@ -131,7 +128,6 @@ fn main() -> ! {
         info!(".distance_mm:      {}", res.distance_mm);
     }
 
-    //Ok(())
     loop {}
 }
 
@@ -155,8 +151,6 @@ fn blocking_delay_us(us: u32) { D_PROVIDER.delay_micros(us); }
 */
 #[cfg(feature="run_with_probe_rs")]
 fn init_defmt() {
-    use esp_hal::time::Instant;
-
     defmt::timestamp!("{=u64:us}", {
         let now = Instant::now();
         now.duration_since_epoch().as_micros()

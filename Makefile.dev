@@ -55,7 +55,7 @@ endif
 
 m3-slim:
 	EXAMPLE=m3 \
-	  FEATURES=$(FEATURES),run_with_espflash,esp_hal_api,distance_mm \
+	  FEATURES=$(FEATURES),run_with_espflash,distance_mm \
 	  $(REMAKE) --no-print-directory _build _run-with-espflash
 
 m3-with-probe-rs:

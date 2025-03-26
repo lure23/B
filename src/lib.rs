@@ -21,10 +21,7 @@ pub use {
     results_data::ResultsData,
     state_hp_idle::State_HP_Idle,
     state_ranging::{
-        Mode,
-        RangingConfig,
         State_Ranging,
-        TargetOrder
     }
 };
 
