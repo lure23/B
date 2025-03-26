@@ -24,7 +24,6 @@ use esp_hal::{
 
 extern crate just_b as uld;
 use uld::{
-    Result,
     VL53L5CX,
     RangingConfig,
     units::*,

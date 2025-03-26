@@ -25,19 +25,6 @@ use crate::uld_raw::{
 pub trait Platform {
     // provided by the app
     //
-    // Note: We're using an unconventional 'Result<(),()>' return type (calls may err, but no error
-    //      details are provided). The errors we get from the vendor ULD C API are technically
-    //      'u8's, but practically only ST_OK/ST_ERR. The platform I2C API's, on the other hand,
-    //      provide their own set of errors (within these callbacks).
-    //
-    //      We *could* add a '<R>' generic to the 'Platform', but this presumably complicates our
-    //      platform-hidden-in-"configuration" trick beyond.. comprehension of the author. The
-    //      '()' error feels like a good starting point. :)
-    //
-    //      We could (and tried):
-    //          - bool              | just feels... wrong in Rust
-    //          - Option            | nah
-    //
     fn rd_bytes(&mut self, index: u16, buf: &mut [u8]);
     fn wr_bytes(&mut self, index: u16, vs: &[u8]);
     fn delay_ms(&mut self, ms: u32);
@@ -59,23 +46,23 @@ pub trait Platform {
 *
 * Note: '#[no_mangle]' (which we need) and using generics ('P : Platform') are *incompatible*
 *       with each other (for good reasons); we try to circumvent this by moving to Rust-land here,
-*       and letting another layer do the generics. Note: using generics is just a "but I. Want."
+*       and letting another layer do the generics. Note: using generics is just a "but I Want"
 *       of the author!!! 😿😿
 */
 
 /// @brief Read a single byte
-/// @param (Platform*) p_platform : platform structure
-/// @param (uint16_t) address : I2C location of value to read
+/// @param (Platform*) pt : platform structure
+/// @param (uint16_t) index : I2C location of value to read
 /// @param (uint8_t) *p_value : Where to store the value
 /// @return (uint8_t) status : 0 if OK
 #[no_mangle]
 pub extern "C" fn VL53L5CX_RdByte(
     pt: *mut VL53L5CX_Platform,
-    addr: u16,          // VL index
+    index: u16,
     p_value: *mut u8
 ) -> u8 {
     with(pt, |p| {
-        p.rd_bytes(addr, unsafe { slice::from_raw_parts_mut(p_value, 1_usize) });
+        p.rd_bytes(index, unsafe { slice::from_raw_parts_mut(p_value, 1_usize) });
         ST_OK
     })
 }
@@ -171,10 +158,6 @@ pub extern "C" fn VL53L5CX_WaitMs(pt: *mut VL53L5CX_Platform, time_ms: u32) -> u
     })
 }
 
-/*
-* NOTE! *FINALLY* thinking like Rust!! Using 'with' and a closure, we don't need to worry about
-*   lifespans of the converted pointer!
-*/
 pub(crate)  // open for 'set_i2c_address()' so that the I2C address can be changed, on the fly!!!
 fn with<T, F: Fn(&mut dyn Platform) -> T>(pt: *mut VL53L5CX_Platform, f: F) -> T {
 

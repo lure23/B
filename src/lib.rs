@@ -33,17 +33,6 @@ use crate::uld_raw::{
     vl53l5cx_init,
     API_REVISION as API_REVISION_r,   // &[u8] with terminating '\0'
     ST_OK, ST_ERROR,
-
-    /*** tbd. if needed, bring under features
-    *vl53l5cx_disable_internal_cp,
-    *vl53l5cx_enable_internal_cp,
-    *    //
-    *vl53l5cx_dci_read_data,
-    *vl53l5cx_dci_write_data,
-    *    //
-    *vl53l5cx_get_VHV_repeat_count,
-    *vl53l5cx_set_VHV_repeat_count,
-    */
 };
 
 pub type Result<T> = core::result::Result<T,Error>;
@@ -111,8 +100,10 @@ impl VL53L5CX_Configuration {
        *       {0x01, 0x01}
     */
     fn init_with<P : Platform + 'static>(mut p: P) -> Result<Self> {
-        use core::mem::MaybeUninit;
-        use core::ptr::addr_of_mut;
+        use core::{
+            mem::MaybeUninit,
+            ptr::addr_of_mut
+        };
 
         #[allow(unused_unsafe)]
         let ret: Result<VL53L5CX_Configuration> = unsafe {
@@ -125,15 +116,14 @@ impl VL53L5CX_Configuration {
             // *may be* just within doable!
             //
             // Nice part of using '&mut dyn Platform' is also that the size and alignment requirements
-            // (16 and 8 bytes), remain constant for the C side.
+            // (20 and 8 bytes), remain constant for the C side.
             //
             let dd: &mut dyn Platform = &mut p;
-                // tbd. 20 in 29-Jan-25 (rustc 1.84), not 16
 
             // Make a bitwise copy of 'dd' in 'uninit.platform'; ULD C 'vl.._init()' will need it,
             // and pass back to us (Rust) once platform calls (I2C/delays) are needed.
             //
-            // BTW: This is what allows multiple VL boards to be utilized, at once; each get
+            // BTW: This also allows multiple VL boards to be utilized, at once; each get
             //      their own, opaque 'Platform'.
             {
                 let pp = addr_of_mut!((*up).platform);
@@ -145,8 +135,6 @@ impl VL53L5CX_Configuration {
                 //
                 let sz_c = size_of_val(&(*up).platform);
                 let sz_rust = size_of_val(dd);
-                //assert_eq!(sz_c,sz_rust, "Tunnel entry and exit sizes don't match");   // edit 'platform.h' to adjust
-
                 assert!(sz_c >= sz_rust, "Tunnel C side isn't wide enough");   // edit 'platform.h' to adjust
 
                 let al_rust = align_of_val(dd);
@@ -164,7 +152,7 @@ impl VL53L5CX_Configuration {
             // Note: Already this will call the platform methods (via the tunnel).
             //
             match vl53l5cx_init(up) {
-                0 => Ok(uninit.assume_init()),  // we guarantee it's now initialized
+                ST_OK => Ok(uninit.assume_init()),  // we guarantee it's now initialized
                 e => Err(Error(e))
             }
         };
@@ -198,19 +186,16 @@ impl<P: Platform + 'static> VL53L5CX<P> {
     }
 
     fn ping(p: &mut P) -> CoreResult<(),()> {
-        #[cfg_attr(not(feature="_defmt"), allow(unused_variables))]
         match vl53l5cx_ping(p)? {
             (a@ 0xf0, b@ 0x02) => {     // vendor driver ONLY proceeds with this
-                #[cfg(feature="_defmt")]
-                debug!("Ping succeeded: {=u8:#04x},{=u8:#04x}", a,b)
+                debug!("Ping succeeded: {=u8:#04x},{=u8:#04x}", a,b);
+                Ok(())
             },
             t => {
-                #[cfg(feature="_defmt")]
                 error!("Unexpected '(device id, rev id)': {:#04x}", t);
-                return Err(());
+                Err(())
             }
         }
-        Ok(())
     }
 }
 
@@ -222,11 +207,11 @@ impl<P: Platform + 'static> VL53L5CX<P> {
 * This is the only code that the ULD C driver calls on the device, prior to '.init()', i.e. it
 * is supposed to be functioning also before the firmware and parameters initialization.
 *
-* Vendor note:
-*   - ULD C driver code expects '(0xf0, 0x02)'.
+* Note:
+*   - Vendor's ULD C driver expects '(0xf0, 0x02)'.
 */
 fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
-    let mut buf: [u8;2] = [u8::MAX;2];
+    let mut buf = [u8::MAX;2];
 
     pl.wr_bytes(0x7fff, &[0x00]);
     pl.rd_bytes(0, &mut buf);   // [dev_id, rev_id]
@@ -237,6 +222,9 @@ fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
 
 /*
 * Wrapper to eliminate 8-bit vs. 7-bit I2C address misunderstandings.
+*
+* Note: Not using 'esp-hal' 'i2c::master::I2cAddress' to keep the door ever so slightly ajar for
+*       other MCU families. If someone wants to do the work.
 */
 #[derive(Copy,Clone,Eq,PartialEq)]
 pub struct I2cAddr(u8);     // stored as 7-bit (internal detail)

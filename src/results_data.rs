@@ -6,9 +6,6 @@
 *
 * Note: It is by design that these conversions happen already at the ULD level.
 *
-* Note: Many of the individual data are steered by features. These go all the way to the C level:
-*       disabling a feature means less driver code, less data to transfer.
-*
 * References:
 *   - vendor's UM2884 > Chapter 5 ("Ranging results"); Rev 5, Feb'24; PDF 18pp.
 *       -> https://www.st.com/resource/en/user_manual/um2884-a-guide-to-using-the-vl53l5cx-multizone-timeofflight-ranging-sensor-with-a-wide-field-of-view-ultra-lite-driver-uld-stmicroelectronics.pdf
@@ -74,8 +71,6 @@ impl<const DIM: usize> ResultsData<DIM> {
     pub(crate) fn from(raw_results: &VL53L5CX_ResultsData) -> (Self,TempC) {
         use core::mem::MaybeUninit;
 
-        //validate_raw(raw_results);  // panics if input not according to expectations
-
         let mut x: Self = {
             let un = MaybeUninit::<Self>::uninit();
             unsafe { un.assume_init() }
@@ -135,11 +130,6 @@ impl<const DIM: usize> ResultsData<DIM> {
                 }
             }
         }
-
-        // Metadata: DIMxDIM (just once)
-        //
-        #[cfg(feature = "nb_targets_detected")]
-        into_matrix(&rr.nb_target_detected, &mut self.targets_detected);
 
         // Results: DIMxDIMxTARGETS
         //
@@ -202,108 +192,3 @@ impl TargetStatus {
         }
     }
 }
-
-/***R
-/*
-* Validates that the input we get from ULD C API is according to assumptions (i.e. validate our
-* ASSUMPTIONS; the data of course are fine!!!).
-*/
-fn validate_raw<const DIM: usize>(rr: &VL53L5CX_ResultsData) {
-
-    // helpers
-    //
-    #[allow(dead_code)]
-    fn assert_matrix_o<X: Copy>(raw: &[X], assert_f: fn(X) -> ()) {
-        let raw = &raw[..DIM * DIM * TARGETS];      // take only the beginning of the C buffer
-
-        for r in 0..DIM {
-            for c in 0..DIM {
-                for offset in 0..TARGETS {  // the targets are in consecutive bytes; best to have this inmost
-                    let v = raw[(r * DIM + c) * TARGETS + offset];
-                    assert_f(v);
-                }
-            }
-        }
-    }
-    // Zone metadata: 'TARGETS' (and 'offset', by extension) are not involved.
-    fn assert_matrix<X: Copy>(raw: &[X], assert_f: fn(X) -> ()) {
-        let raw = &raw[..DIM * DIM];      // take only the beginning of the C buffer
-
-        for r in 0..DIM {
-            for c in 0..DIM {
-                out[r][c] = raw[r*DIM+c];
-            }
-        }
-    }
-
-    // Metadata: DIMxDIM (just once)
-    //
-    // '.ambient_per_spad'
-    //  <<
-    //      [INFO ] .ambient_per_spad: [[1, 2, 0, 3], [1, 4, 1, 0], [2, 1, 3, 0], [9, 2, 1, 2]]
-    //  <<
-    // true
-
-    // '.spads_enabled'
-    //  <<
-    //      [INFO ] .spads_enabled:    [[1280, 3328, 3584, 4352], [1024, 2816, 3584, 3584], [1280, 2816, 4352, 3328], [1280, 3584, 3584, 2816]]
-    //  <<
-    // true
-
-    // '.targets_detected'
-    //  <<
-    //      [INFO ] .targets_detected: [[1, 1, 2, 2], [1, 1, 1, 1], [1, 1, 1, 1], [1, 2, 2, 1]]
-    //  <<
-    //
-    // Q: Can this ever be zero?
-    //
-    #[cfg(feature = "nb_targets_detected")]
-    assert_matrix(&rr.nb_target_detected, |x| => { assert_gt(x, 0, "'.nb_target_detected' == 0"); });
-
-    // Results: DIMxDIMxTARGETS
-    //
-    for i in 0..TARGETS {
-        // '.target_status'
-        //  <<
-        //      [INFO ] .target_status:    [[[Valid(5), Valid(5), Valid(5), Valid(5)], [Valid(5), Valid(5), Valid(5), Valid(5)], [Valid(5), Valid(5), Valid(5), Valid(5)], [Valid(5), Valid(5), Valid(5), Valid(5)]], [[Other(0), Other(0), Valid(5), Other(13)], [Other(0), Other(0), Other(0), Other(0)], [Other(0), Other(0), Other(0), Other(0)], [Other(0), Other(4), Other(13), Other(4)]]]
-        //  <<
-        assert_matrix_o(&rr.target_status, |x| { assert(x.within_range(...)) });
-
-        // '.distance_mm'
-        // <<
-        //      [INFO ] .distance_mm:      [[[13, 13, 12, 5], [12, 23, 23, 12], [13, 17, 19, 10], [10, 13, 6, 0]], [[0, 0, 259, 753], [0, 0, 0, 0], [0, 0, 0, 0], [0, 597, 657, 765]]]
-        // <<
-        //      normally > 0
-        //      can be == 0 if '.target_status' is 0
-        //
-        #[cfg(feature = "distance_mm")]
-        into_matrix_map_o(&rr.distance_mm, i, &mut self.distance_mm[i],
-                          |v: i16| -> u16 {
-                              assert!(v >= 0, "Unexpected 'distance_mm' value: {} < 0", v); v as u16
-                          });
-
-        // '.range_sigma_mm'
-        //  <<
-        //      [INFO ] .range_sigma_mm:   [[[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]], [[0, 0, 3, 11], [0, 0, 0, 0], [0, 0, 0, 0], [0, 34, 18, 24]]]
-        //  <<
-        #[cfg(feature = "range_sigma_mm")]
-        into_matrix_o(&rr.range_sigma_mm, i, &mut self.range_sigma_mm[i]);
-
-        // '.reflectance'
-        //  <<
-        //      [INFO ] .reflectance:      [[[1, 0, 0, 0], [1, 1, 1, 0], [1, 1, 0, 0], [0, 0, 0, 0]], [[0, 0, 11, 17], [0, 0, 0, 0], [0, 0, 0, 0], [0, 9, 12, 14]]]
-        //  <<
-        #[cfg(feature = "reflectance_percent")]
-        into_matrix_o(&rr.reflectance, i, &mut self.reflectance[i]);
-
-        // '.signal_per_spad'
-        //  <<
-        //      [INFO ] .signal_per_spad:  [[[5171, 1655, 1377, 1506], [4859, 1815, 1372, 1480], [4910, 1716, 1395, 1717], [4623, 1630, 1359, 2050]], [[0, 0, 119, 21], [0, 0, 0, 0], [0, 0, 0, 0], [0, 17, 20, 17]]]
-        //  <<
-        #[cfg(feature = "signal_per_spad")]
-        into_matrix_o(&rr.signal_per_spad, i, &mut self.signal_per_spad[i]);
-    }
-
-    TempC(rr.silicon_temp_degc)
-}
-***/
