@@ -13,18 +13,10 @@
 *
 *   [*]: DS13754 - Rev 12, p.9
 */
-use crate::{
-    state_ranging::{
-        State_Ranging,
-    },
-    uld_raw::{
-        vl53l5cx_get_power_mode,
-        VL53L5CX_Configuration
-    },
-    Error,
-    Result,
-    ST_OK
-};
+use crate::{uld_raw::{
+    vl53l5cx_get_power_mode,
+    VL53L5CX_Configuration
+}, Error, Result, ST_OK};
 
 /*
 * The "HP Idle" state (vendor terminology): firmware has been downloaded; ready to range.
@@ -51,26 +43,14 @@ impl State_HP_Idle {
         Self{ uld }
     }
 
-    //---
-    // Ranging (getting values)
-    //
-    pub fn start_ranging<const DIM: usize>(/*move*/ self) -> Result<State_Ranging<DIM>> {
-        let r = State_Ranging::transition_from(self)?;
-        Ok(r)
-    }
-
     /* I2C access without consequences
     */
-    pub /*<-- for debugging*/ fn i2c_no_op(&mut self) -> Result<()> {
+    pub fn i2c_no_op(&mut self) -> Result<()> {
         let mut tmp: u8 = 0;
         match unsafe { vl53l5cx_get_power_mode(&mut self.uld, &mut tmp) } {
             ST_OK => Ok(()),
             e => Err(Error(e))
         }
-    }
-
-    pub(crate) fn borrow_uld_mut(&mut self) -> &mut VL53L5CX_Configuration {
-        &mut self.uld
     }
 }
 

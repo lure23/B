@@ -47,7 +47,7 @@ macro_rules! pins {{
             SDA: $peripherals.GPIO{SDA}.into(),
             SCL: $peripherals.GPIO{SCL}.into(),
             PWR_EN: $peripherals.GPIO{PWR_EN}.into(),
-            INT: $peripherals.GPIO{INT}.into(),
+            //INT: $peripherals.GPIO{INT}.into(),
         }}
     }}}}
 }}

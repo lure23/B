@@ -7,6 +7,8 @@ use esp_hal::{
     Blocking,
 };
 
+use core::cell::RefCell;
+
 use crate::uld::{
     DEFAULT_I2C_ADDR,
     I2cAddr,
@@ -18,7 +20,7 @@ const I2C_ADDR: I2cAddress = I2cAddress::SevenBit( DEFAULT_I2C_ADDR.as_7bit() );
 /*
 */
 pub struct MyPlatform<'a> {
-    i2c: I2c<'a, Blocking>,
+    i2c: RefCell<I2c<'a, Blocking>>,
 }
 
 // Rust note: for the lifetime explanation, see:
@@ -28,7 +30,12 @@ pub struct MyPlatform<'a> {
 impl<'a> MyPlatform<'a> {
     #[allow(non_snake_case)]
     pub fn new(i2c: I2c<'a,Blocking>) -> Self {
-        Self{ i2c }
+        Self{ i2c: RefCell::new(i2c) }
+    }
+
+    fn with_i2c<R>(&mut self, f: impl FnOnce(&mut I2c<Blocking>) -> R) -> R {
+        let i2c = self.i2c.get_mut();
+        f(i2c)
     }
 }
 
@@ -37,12 +44,13 @@ impl Platform for MyPlatform<'_> {
     */
     fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) {
 
-        self.i2c.write_read(I2C_ADDR, &index.to_be_bytes(), buf)
-            .unwrap_or_else(|e| {
-                // If we get an error, let's stop right away.
-                panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index, buf.len(), e);
-            }
-        );
+        self.with_i2c(|i2c| {
+            i2c.write_read(I2C_ADDR, &index.to_be_bytes(), buf)
+                .unwrap_or_else(|e| {
+                    // If we get an error, let's stop right away.
+                    panic!("I2C read at {:#06x} ({=usize} bytes) failed: {}", index, buf.len(), e);
+                });
+        });
 
         if buf.len() <= 20 {
             trace!("I2C read: {:#06x} -> {:#04x}", index, buf);
@@ -70,11 +78,12 @@ impl Platform for MyPlatform<'_> {
         // need to concatenate the slices in a buffer.
         //
         // BUG: GETS STUCK (FIRST WRITE AFTER INIT) HERE:
-        self.i2c.transaction(I2C_ADDR, &mut [Operation::Write(&index.to_be_bytes()), Operation::Write(&vs)])
-            .unwrap_or_else(|e| {
-                panic!("I2C write to {:#06x} ({} bytes) failed: {}", index, vs.len(), e);
-            }
-        );
+        self.with_i2c(|i2c| {
+            i2c.transaction(I2C_ADDR, &mut [Operation::Write(&index.to_be_bytes()), Operation::Write(&vs)])
+                .unwrap_or_else(|e| {
+                    panic!("I2C write to {:#06x} ({} bytes) failed: {}", index, vs.len(), e);
+                });
+        });
 
         let n = vs.len();
         if n <= TRACE_SLICE_HEAD {

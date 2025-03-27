@@ -3,32 +3,23 @@
 
 mod platform;
 mod state_hp_idle;
-mod state_ranging;
-mod results_data;
 mod uld_raw;
-pub mod units;
 
 use defmt::{debug, error, Format};
 
 use core::{
-    ffi::CStr,
     fmt::{Display, Formatter},
     result::Result as CoreResult,
 };
 
 pub use {
     platform::Platform,
-    results_data::ResultsData,
     state_hp_idle::State_HP_Idle,
-    state_ranging::{
-        State_Ranging,
-    }
 };
 
 use crate::uld_raw::{
     VL53L5CX_Configuration,
     vl53l5cx_init,
-    API_REVISION as API_REVISION_r,   // &[u8] with terminating '\0'
     ST_OK, ST_ERROR,
 };
 
@@ -45,18 +36,6 @@ impl Display for Error {
 }
 
 pub const DEFAULT_I2C_ADDR: I2cAddr = I2cAddr::from_8bit(0x52);    // default after each power on
-
-// After LOTS of variations, here's a way to expose a 'CStr' string as a '&str' const (as long as
-// we avoid '.unwrap*()' of any kind, it's const). Why it matters (does it tho?):
-//  - follows the ULD C API closely
-//  - works out-of-the-box for defmt ('&CStr' doesn't)
-//
-pub const API_REVISION: &str = {
-    match unsafe{ CStr::from_bytes_with_nul_unchecked(API_REVISION_r) }.to_str() {
-        Ok(s) => s,
-        _ => unreachable!()     // use "" if this doesn't pass the compiler tbd.
-    }
-};
 
 /*
 * Adds a method to the ULD C API struct.

@@ -74,16 +74,6 @@ fn main() -> Result<()> {
     };
 
     //---
-    // Config sanity checks
-    {
-        // In the nature of Rust features being combinable, several 'targets_per_zone{2..4}' _are_ allowed, the
-        // grandest of them making the call. = we don't need to check for sanity.
-        //
-        //"targets_per_zone_2",
-        //"targets_per_zone_3",
-        //"targets_per_zone_4",
-    }
-
     // Config sanity checks (if 'examples/*')
     //
     if std::env::var("EXAMPLE").is_ok() {   // "EXAMPLE=m3"
@@ -135,7 +125,6 @@ fn main() -> Result<()> {
         //
         add!("VL53L5CX_DISABLE_AMBIENT_PER_SPAD");
         add!("VL53L5CX_DISABLE_NB_SPADS_ENABLED");
-        #[cfg(not(feature = "nb_targets_detected"))]
         add!("VL53L5CX_DISABLE_NB_TARGET_DETECTED");
         //
         // Second group: data and metadata (DIMxDIMxTARGETS)
@@ -151,19 +140,7 @@ fn main() -> Result<()> {
         // 'motion_indicator' support is not implemented; always disable in C
         add!("VL53L5CX_DISABLE_MOTION_INDICATOR");
 
-        // Vendor docs:
-        //      "the number of target[s] per zone sent through I2C. [...] a lower number [...] means a lower RAM
-        //      [consumption]."
-        //
-        // NOTE: In the nature of Rust features being *combinable* (the merger matters; features should not be
-        //      exclusive), we use the *largest* given feature. If there are none, 1.
-        //
-        const TARGETS: usize =
-                 if cfg!(feature = "targets_per_zone_4") { 4 }
-            else if cfg!(feature = "targets_per_zone_3") { 3 }
-            else if cfg!(feature = "targets_per_zone_2") { 2 }
-            else { 1 };     // always one target
-
+        const TARGETS: usize = 1;
         defs.push(format!("VL53L5CX_NB_TARGET_PER_ZONE {TARGETS}U"));
 
         // Write the file. This way the last 'cargo build' state remains available, even if

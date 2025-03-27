@@ -13,7 +13,6 @@ debug = 2
 
 [dependencies]
 defmt           = { version = "0.3.10", optional = true }
-strum           = { version = "0.27.1", default-features = false, features = ["derive"] }
 
 esp-hal         = { version = "1.0.0-beta.0", features = ["esp32c3"], optional = true }  # "defmt"
     # needed for its 'Rate' (with 'esp_hal_api' feature); also under 'dev-dependencies'
@@ -35,14 +34,6 @@ esp-backtrace   = { version = "0.15.1", features = ["exception-handler", "panic-
 esp-hal         = { version = "1.0.0-beta.0", features = ["esp32c3", "unstable"] }  # "defmt"
     # "unstable" needed for 'delay' module
 
-semihosting     = { version = "0.1.19" }
-    # "portable-atomic":
-    #   <<
-    #       To use the 'panic-unwind' feature on such targets (e.g., RISC-V without A-extension [i.e. C3]),
-    #       you need to enable this feature.
-    #   <<
-    # Reading: since we use 'panic-abort', we don't benefit from it.
-
 [build-dependencies]
 anyhow          = "1.0.97"
 itertools       = "0.14.0"
@@ -61,19 +52,9 @@ toml            = "0.8.20"
 #
 [features]
 distance_mm=[]          # VL53L5CX_DISABLE_DISTANCE_MM
-reflectance_percent=[]  # VL53L5CX_DISABLE_REFLECTANCE_PERCENT
 
 # Keep always enabled. You need it to know which results are valid.
 target_status = []      # VL53L5CX_DISABLED_TARGET_STATUS
-
-# Automatically enabled when having multiple zones.
-nb_targets_detected=[]  # VL53L5CX_DISABLE_NB_TARGET_DETECTED
-
-# The code always compiles for at least 1 "target per zone" (how many objects can be detected, in the same conical zone).
-# If you want to see more, enable these:
-targets_per_zone_2=["nb_targets_detected"]
-targets_per_zone_3=["nb_targets_detected"]
-targets_per_zone_4=["nb_targets_detected"]
 
 _defmt = ["dep:defmt", "esp-hal/defmt", "esp-backtrace/defmt", "esp-println?/defmt-espflash"]
 
@@ -90,9 +71,7 @@ esp-hal-next = []
 #
 # Note: 'esp-backtrace/defmt' kept here, in case we want to try 'esp-backtrace/println' on the former.
 run_with_espflash = ["_defmt", "dep:esp-println"]
-run_with_probe_rs = ["_defmt", "dep:defmt-rtt",
-    "esp-backtrace/semihosting"
-]
+run_with_probe_rs = ["_defmt", "dep:defmt-rtt"]
 
 # Having 'required-features' stops compilation, in case some features wouldn't be declared. However, we also check
 # this in the compiles, so having the examples listed here is .. just giving the errors slightly faster.
