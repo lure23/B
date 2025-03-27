@@ -14,9 +14,6 @@ debug = 2
 [dependencies]
 defmt           = { version = "0.3.10", optional = true }
 
-esp-hal         = { version = "1.0.0-beta.0", features = ["esp32c3"], optional = true }  # "defmt"
-    # needed for its 'Rate' (with 'esp_hal_api' feature); also under 'dev-dependencies'
-
 #[dev-dependencies]
 # Rust provides no mechanism for conditional 'dev-dependencies'. Thus, we introduce them here.
 defmt-rtt       = { version = "0.4.1", optional = true }
@@ -58,13 +55,7 @@ target_status = []      # VL53L5CX_DISABLED_TARGET_STATUS
 
 _defmt = ["dep:defmt", "esp-hal/defmt", "esp-backtrace/defmt", "esp-println?/defmt-espflash"]
 
-# Provide interfacing to 'esp_hal::time::Rate'
-esp_hal_api = ["dep:esp-hal"]
-
 default = ["target_status"]
-
-# Enable to use 'main' branch (non-released API changes); also enable the '[patch.crates-io]' section, below.
-esp-hal-next = []
 
 # Features for the examples only! Rust gives no mechanism to have features that would apply only to 'examples/' (but
 # not be exposed to downstream projects). In downstream projects, just IGNORE THESE: THE LIBRARY DOES NOT USE THEM!!
