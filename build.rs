@@ -11,15 +11,6 @@ use anyhow::*;
 //
 include!("build_snippets/pins.in");
 
-const CONFIG_H_NEXT: &str = "tmp/config.h.next";
-
-/*
-* Note: 'build.rs' is supposedly run only once, for any 'examples', 'lib' etc. build.
-*
-* References:
-*   - Environment variables set
-*       -> https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
-*/
 fn main() -> Result<()> {
     use std::{
         env,
@@ -36,21 +27,6 @@ fn main() -> Result<()> {
 
     // If IDE runs, terminate early.
     if IDE_RUN { return Ok(()) };
-
-    // DEBUG: Show what we know about the compilation.
-    //
-    // <<
-    //   CARGO_CFG_TARGET_FEATURE=c,m
-    //   CARGO_FEATURE_{..feature..}=1
-    //   LD_LIBRARY_PATH=/home/ubuntu/VL53L5CX_rs.cifs/vl53l5cx_uld/target/release/deps:/home/ubuntu/VL53L5CX_rs.cifs/vl53l5cx_uld/target/release:/home/ubuntu/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib:/home/ubuntu/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib
-    //   RUSTUP_TOOLCHAIN=stable-x86_64-unknown-linux-gnu
-    //   TARGET=riscv32imc-unknown-none-elf
-    // <<
-    #[cfg(not(all()))]
-    {
-        std::env::vars().for_each(|(a, b)| { eprintln!("{a}={b}"); });
-        panic!();
-    }
 
     // Pick the current MCU. To be used as board id for 'pins.toml'.
     //
@@ -73,17 +49,6 @@ fn main() -> Result<()> {
         x.into()
     };
 
-    //---
-    // Config sanity checks (if 'examples/*')
-    //
-    if std::env::var("EXAMPLE").is_ok() {   // "EXAMPLE=m3"
-        #[cfg(not(any(feature = "run_with_espflash", feature = "run_with_probe_rs")))]
-        panic!("Must enable feature: run_with_{{espflash|probe_rs}}");
-
-        #[cfg(all(feature = "run_with_espflash", feature = "run_with_probe_rs"))]
-        panic!("Must enable ONLY one of features: run_with_{{espflash|probe_rs}}");
-    }
-
     // Expose 'OUT_DIR' to an external (Makefile) build system
     {
         const TMP: &str = ".OUT_DIR";
@@ -102,81 +67,6 @@ fn main() -> Result<()> {
         process_pins(toml, &board_id)?;
     }
 
-    //---
-    // Create a C config header, reflecting the Rust-side features required.
-    //
-    // MUST BE BEFORE running the Makefile.
-    //
-    // Note: Never run this on IDE builds - the features a person selects in the IDE UI don't necessarily match
-    //       what the real builds will be about.
-    {
-        use itertools::Itertools;
-        let mut defs: Vec<String> = vec!();
-
-        macro_rules! add {
-            ($x:expr) => { defs.push($x.into()); }
-        }
-        // ^-- Practically the same as:
-        // let add = |s: dyn Into<String>| { defs.push(s.into()) };    // does not compile
-
-        // Output-enabling features (in Rust, we have them enabling; in C they are disable flags). Same thing.
-        //
-        // First group: metadata of the sensor (DIMxDIM, regardless of targets)
-        //
-        add!("VL53L5CX_DISABLE_AMBIENT_PER_SPAD");
-        add!("VL53L5CX_DISABLE_NB_SPADS_ENABLED");
-        add!("VL53L5CX_DISABLE_NB_TARGET_DETECTED");
-        //
-        // Second group: data and metadata (DIMxDIMxTARGETS)
-        //
-        #[cfg(not(feature = "target_status"))]
-        add!("VL53L5CX_DISABLE_TARGET_STATUS");
-        #[cfg(not(feature = "distance_mm"))]
-        add!("VL53L5CX_DISABLE_DISTANCE_MM");
-        add!("VL53L5CX_DISABLE_RANGE_SIGMA_MM");
-        add!("VL53L5CX_DISABLE_REFLECTANCE_PERCENT");
-        add!("VL53L5CX_DISABLE_SIGNAL_PER_SPAD");
-
-        // 'motion_indicator' support is not implemented; always disable in C
-        add!("VL53L5CX_DISABLE_MOTION_INDICATOR");
-
-        const TARGETS: usize = 1;
-        defs.push(format!("VL53L5CX_NB_TARGET_PER_ZONE {TARGETS}U"));
-
-        // Write the file. This way the last 'cargo build' state remains available, even if
-        // 'make' were run manually (compared to passing individual defines to 'make');
-        // also, it keeps the 'Makefile' simple.
-        //
-        let contents = defs.iter()
-            .map(|s| format!("#define {s}"))
-            .join("\n");
-
-        fs::write(CONFIG_H_NEXT, contents)
-            .expect( &format!("Unable to write {}", CONFIG_H_NEXT) );
-    }
-
-    // make stuff
-    //
-    let st = Command::new("make")
-        //.arg("-B")
-        .arg("tmp/libvendor_uld.a")    // ULD C library
-        .arg("tmp/uld_raw.rs")      // generate the ULD Rust bindings
-        .output()
-        .expect("to be able to launch `make`")   // shown if 'make' not found on PATH
-        .status;
-
-    if !st.success() {
-        // Remove "tmp/config.h[.next]" so they will get recreated next time. This should avoid
-        // the build to get in an awkward position where the developer needs to remove them, themselves.
-        //
-        fs::remove_file("tmp/config.h")?;
-        fs::remove_file(CONFIG_H_NEXT)?;
-
-        panic!("[ERROR!]: Running 'make' failed. \
-            SUGGESTION: run 'make manual' on the command line to see more error information. \
-        ");
-    }
-
     // Link arguments
     //
     {
@@ -185,10 +75,6 @@ fn main() -> Result<()> {
             "-Tdefmt.x"     // required by 'defmt'
         ] {
             println!("cargo::rustc-link-arg={}", s);
-        }
-
-        if std::env::var("TEST").is_ok() {  // 'cargo test' run
-            println!("cargo::rustc-link-arg-tests=-Tembedded-test.x");
         }
     }
 

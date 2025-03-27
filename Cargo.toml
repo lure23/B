@@ -33,7 +33,6 @@ esp-hal         = { version = "1.0.0-beta.0", features = ["esp32c3", "unstable"]
 
 [build-dependencies]
 anyhow          = "1.0.97"
-itertools       = "0.14.0"
 serde           = { version = "1.0", features = ["derive"] }
 toml            = "0.8.20"
 
@@ -70,11 +69,6 @@ run_with_probe_rs = ["_defmt", "dep:defmt-rtt"]
 [[example]]
 name = "m3"
 required-features = ["distance_mm"]   # + "targets_per_zone_{2..4}"
-
-[[test]]
-name = "plain_test"
-harness = false
-required-features = ["defmt"]
 
 # Enable to use latest 'main' (also enable 'esp-hal-next' feature, if fails to build, otherwise)
 #|[patch.crates-io]

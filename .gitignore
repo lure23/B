@@ -2,11 +2,8 @@
 /target/
 
 /Cargo.lock
-/tmp/
+#/tmp/
 /.OUT_DIR
 
 # Generated
 /examples/pins_gen.in
-
-# C sources (placed by you)
-/VL53L5CX_ULD_API/

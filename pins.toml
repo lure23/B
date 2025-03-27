@@ -9,10 +9,8 @@ generate = "examples/pins_gen.in"
 SDA = 4
 SCL = 5
 PWR_EN = 6
-INT=7
 
 [boards.esp32c6]
 SDA = 18
 SCL = 19
 PWR_EN = 21
-INT = 22

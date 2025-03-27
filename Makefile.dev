@@ -58,23 +58,10 @@ m3-slim:
 	  FEATURES=$(FEATURES),run_with_espflash,distance_mm \
 	  $(REMAKE) --no-print-directory _build _run-with-espflash
 
-m3-with-probe-rs:
+m3-slim-with-probe:
 	EXAMPLE=m3 \
-	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_probe_rs,$(ALL_FEATURES),esp_hal_api \
+	  FEATURES=$(FEATURES),run_with_probe_rs,distance_mm \
 	  $(REMAKE) --no-print-directory _build _run-with-probe-rs
-
-m3-with-espflash:
-	EXAMPLE=m3 \
-	  FEATURES=$(FEATURES),targets_per_zone_2,run_with_espflash,$(ALL_FEATURES),esp_hal_api \
-	  $(REMAKE) --no-print-directory _build _run-with-espflash
-
-# Tests
-plain_test pt:
-	TEST=plain_test \
-	  $(REMAKE) --no-print-directory _test
-
-_test:
-	$(LOG_ENV) cargo test --features=defmt --test $(TEST)
 
 #---
 _build:
