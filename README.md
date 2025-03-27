@@ -72,6 +72,9 @@ The GitHub code base defaults to ESP32-C3. To use ESP32-C6, edit the following, 
 ### Make it
 
 - Attach the devkit
+
+	>Note: You can attach the USB to either USB/UART or USB/JTAG.
+
 - Have SATEL wired
 
 ```
@@ -110,7 +113,25 @@ The point of this repo is to find out, why it happens.
 
 ### Make it (C6)
 
-...
+Do the changes mentioned above.
+
+Check that your wiring matches what's for ESP32-C6 in `pins.toml`. 
+
+```
+$ DEFMT_LOG=trace make -f Makefile.dev m3-slim
+EXAMPLE=m3 \
+  FEATURES=,run_with_espflash,distance_mm \
+  make -f Makefile.dev --no-print-directory _build _run-with-espflash
+DEFMT_LOG=esp_hal=info,debug cargo build --release --features=,run_with_espflash,distance_mm --example m3
+[...]
+TRACE I2C read: 0x2c00 -> [0x05, 0x03, 0x00, 0x00]
+INFO Init succeeded
+TRACE Writing: 0x7fff <- [0x00]
+```
+
+It gets stuck there.
+
+**Presumption** is that once the reason for the `assert` problem gets resolved on ESP32-C3, things should work the whole way also for ESP32-C6. Remains to be seen..
 
 
 ## References
