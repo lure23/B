@@ -55,7 +55,7 @@ pub trait Platform {
 /// @param (uint16_t) index : I2C location of value to read
 /// @param (uint8_t) *p_value : Where to store the value
 /// @return (uint8_t) status : 0 if OK
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn VL53L5CX_RdByte(
     pt: *mut VL53L5CX_Platform,
     index: u16,
@@ -72,7 +72,7 @@ pub extern "C" fn VL53L5CX_RdByte(
 /// @param (uint16_t) address : I2C location of value to read
 /// @param (uint8_t) value : value to write
 /// @return (uint8_t) status : 0 if OK
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn VL53L5CX_WrByte(
     pt: *mut VL53L5CX_Platform,
     addr: u16,      // VL index
@@ -90,7 +90,7 @@ pub extern "C" fn VL53L5CX_WrByte(
 /// @param (uint8_t) *p_values : Buffer for bytes to read
 /// @param (uint32_t) size : Size of 'p_values' buffer
 /// @return (uint8_t) status : 0 if OK
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn VL53L5CX_RdMulti(
     pt: *mut VL53L5CX_Platform,
     addr: u16,
@@ -109,7 +109,7 @@ pub extern "C" fn VL53L5CX_RdMulti(
 /// @param (uint8_t) *p_values : bytes to write
 /// @param (uint32_t) size : Size of 'p_values'
 /// @return (uint8_t) status : 0 if OK
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn VL53L5CX_WrMulti(
     pt: *mut VL53L5CX_Platform,
     addr: u16,
@@ -128,7 +128,7 @@ pub extern "C" fn VL53L5CX_WrMulti(
 /// @brief Swap each 4-byte grouping, pointed to by 'buffer', so that ABCD becomes DCBA.
 /// @param (uint8_t*) buf : Buffer to swap
 /// @param (uint16_t) size : Buffer size in bytes; always multiple of 4.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn VL53L5CX_SwapBuffer(buf: *mut u8, size: u16 /*size in bytes; not words*/) {
 
     // Note: Since we don't actually _know_, whether 'buffer' is 4-byte aligned (to be used as '*mut u32'),
@@ -148,7 +148,7 @@ pub extern "C" fn VL53L5CX_SwapBuffer(buf: *mut u8, size: u16 /*size in bytes; n
 /// @param (Platform*) p_platform : platform structure
 /// @param (uint32_t) time_ms : Time to wait in ms
 /// @return (uint8_t) status : 0 if wait is finished
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn VL53L5CX_WaitMs(pt: *mut VL53L5CX_Platform, time_ms: u32) -> u8 {
     assert!(time_ms <= 100, "Unexpected long wait: {}ms", time_ms);    // we know from the C code there's no >100
 

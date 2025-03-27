@@ -1,9 +1,8 @@
 [package]
 name = "just_b"   # name matters; shows in the parent 'Cargo.toml'
-edition = "2021"
-rust-version = "1.80"
-    # 1.80: checks for validity of configuration names
-    # 1.77.0 provides `cargo::` syntax for build script output instructions
+edition = "2024"
+rust-version = "1.85"
+    # 1.85: needed for edition 2024
 publish = false
 
 # 'esp-hal' recommends only using 'release', so...
