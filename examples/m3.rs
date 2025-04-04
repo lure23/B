@@ -4,6 +4,14 @@
 #![no_std]
 #![no_main]
 
+#[allow(unused_imports)]
+use defmt::{info, debug, error, warn, panic};
+
+#[cfg(feature = "run_with_espflash")]
+use esp_println as _;
+#[cfg(feature = "run_with_probe_rs")]
+use defmt_rtt as _;
+
 use esp_backtrace as _;
 
 use esp_hal::{
@@ -11,24 +19,19 @@ use esp_hal::{
     gpio::{AnyPin, Output, OutputConfig, Level},
     i2c::master::{Config as I2cConfig, I2c},
     main,
-    time::Rate
+    time::Rate,
+    Blocking
 };
 
-#[cfg(feature = "run_with_espflash")]
-use esp_println as _;
-#[cfg(feature = "run_with_probe_rs")]
-use defmt_rtt as _;
-
-#[allow(unused_imports)]
-use defmt::{info, debug, error, warn, panic};
+use core::cell::RefCell;
 
 extern crate just_b as uld;
-use uld::{VL53L5CX};
+use uld::VL53L5CX;
 
 include!("./pins_gen.in");  // pins!
 
-mod common;
-use common::MyPlatform;
+mod pl;
+use pl::MyPlatform;
 
 #[allow(non_snake_case)]
 struct Pins {
@@ -42,8 +45,7 @@ const I2C_SPEED: Rate = Rate::from_khz(400);        // use max 400
 
 #[main]
 fn main() -> ! {
-    #[cfg(feature="run_with_probe_rs")]
-    init_defmt();
+    init_defmt();   // skip if using 'espflash' 3.x
 
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
@@ -53,17 +55,25 @@ fn main() -> ! {
     #[allow(non_snake_case)]
     let mut PWR_EN = Output::new(PWR_EN, Level::Low, OutputConfig::default());
 
-    let pl = {
+    let i2c: I2c<'static,Blocking> = {
         let x = I2c::new(peripherals.I2C0, I2cConfig::default()
             .with_frequency(I2C_SPEED)
         ).unwrap();
 
-        let i2c_bus = x
+        x
             .with_sda(SDA)
-            .with_scl(SCL);
-
-        MyPlatform::new(i2c_bus)
+            .with_scl(SCL)
     };
+
+    // Keep ownership of 'i2c' in 'main', while allowing it to be borrowed. If we moved it to 'MyPlatform',
+    // there would be problems in the handling of it (the way the lib uses 'MaybeUninit' vs. 'esp-hal'
+    // asserts); this also _feels_ like a better abstraction.
+    //
+    // Notes:
+    //  - 'RefCell'. Even this is just a "struct + counter" wrap and moves the ownership. Not good for us.
+    //
+    let i2c = RefCell::new(i2c);
+    let pl = MyPlatform::new(i2c);
 
     // Reset VL53L5CX(s) by pulling down their power for a moment
     {
@@ -73,7 +83,9 @@ fn main() -> ! {
         info!("Target powered off and on again.");
     }
 
-    let mut vl = VL53L5CX::new_with_ping(pl).unwrap().init()
+    let /*mut*/ x = VL53L5CX::new_with_ping(pl).unwrap();
+
+    let mut vl = x.init()
         .expect("initialize to succeed");
 
     info!("Init succeeded");
@@ -84,7 +96,9 @@ fn main() -> ! {
             .expect("to pass");
         info!("I2C no-op (get power mode) succeeded");
     }
-    unreachable!();
+
+    //unreachable!();
+    loop {}
 }
 
 const D_PROVIDER: Delay = Delay::new();
@@ -104,7 +118,6 @@ fn blocking_delay_ms(ms: u32) { D_PROVIDER.delay_millis(ms); }
 * Note: If you use Embassy, a better way is to depend on 'embassy-time' and enable its
 *       "defmt-timestamp-uptime-*" feature.
 */
-#[cfg(feature="run_with_probe_rs")]
 fn init_defmt() {
     use esp_hal::time::Instant;
 

@@ -13,7 +13,7 @@ use core::{
 };
 
 pub use {
-    platform::Platform,
+    platform::Custom,
     state_hp_idle::State_HP_Idle,
 };
 
@@ -75,32 +75,20 @@ impl VL53L5CX_Configuration {
        *   - two bytes updated at sensor's DCI memory at '0x0e108' ('VL53L5CX_GLARE_FILTER'):
        *       {0x01, 0x01}
     */
-    fn init_with<P : Platform + 'static>(mut p: P) -> Result<Self> {
+    fn init_with(mut p: impl Custom) -> Result<Self> {
         use core::{
             mem::MaybeUninit,
             ptr::addr_of_mut
         };
+        #[allow(unused_imports)]
+        use core::ffi::c_void;
 
-        #[allow(unused_unsafe)]
         let ret: Result<VL53L5CX_Configuration> = unsafe {
-            let mut uninit = MaybeUninit::<VL53L5CX_Configuration>::zeroed();
+            let mut uninit = MaybeUninit::<VL53L5CX_Configuration>::uninit();
                 // note: use '::zeroed()' in place of '::uninit()' to get more predictability
             let up = uninit.as_mut_ptr();
 
-            // Get a '&mut dyn Platform' reference to 'p'. Converting '*c_void' to a templated 'P'
-            // type is beyond the author's imagination (perhaps impossible?) whereas '&mut dyn Platform'
-            // *may be* just within doable!
-            //
-            // Nice part of using '&mut dyn Platform' is also that the size and alignment requirements
-            // (20 and 8 bytes), remain constant for the C side.
-            //
-            let dd: &mut dyn Platform = &mut p;
-
-            // Make a bitwise copy of 'dd' in 'uninit.platform'; ULD C 'vl.._init()' will need it,
-            // and pass back to us (Rust) once platform calls (I2C/delays) are needed.
-            //
-            // BTW: This also allows multiple VL boards to be utilized, at once; each get
-            //      their own, opaque 'Platform'.
+            // Check that the size and alignments are as expected.
             {
                 let pp = addr_of_mut!((*up).platform);
 
@@ -110,13 +98,41 @@ impl VL53L5CX_Configuration {
                 //      The compiler makes the struct 24-wide, in that case. So we allow the gap.
                 //
                 let sz_c = size_of_val(&(*up).platform);
-                let sz_rust = size_of_val(dd);
+                let sz_rust = size_of_val(&p);
                 assert!(sz_c >= sz_rust, "Tunnel C side isn't wide enough");   // edit 'platform.h' to adjust
 
-                let al_rust = align_of_val(dd);
+                let al_rust = align_of_val(&p);
                 assert!( (pp as usize)%al_rust == 0 ||false, "bad alignment on C side (needs {})", al_rust );
 
-                *(pp as *mut &mut dyn Platform) = dd;
+                debug!("C size: {}, Rust size and alignment: {} {}", sz_c, sz_rust, al_rust );  // 24 20 4
+            }
+
+            // Make a bitwise copy of 'Custom' in 'uninit.platform'; ULD C 'vl.._init()' will need it,
+            // to access the I2C bus (below).
+            //
+            // Note! Very important 'Custom' doesn't get dropped.
+            {
+                let pp = addr_of_mut!((*up).platform);
+
+                *(pp as *mut &mut dyn Custom) = (&mut p) as &mut dyn Custom;
+                core::mem::forget(p);
+
+                /*** shoo off
+                // "cannot transmute between types of different sizes, or dependently-sized types"
+                // *pp = unsafe { transmute(p) };
+
+                //(*pp).__ = unsafe { transmute(&mut p as *mut dyn Custom) };
+
+                // works, but allows a Drop
+                // *(pp as *mut &mut dyn Custom) = (&mut p) as &mut dyn Custom;
+
+                // this is just for getting fields from within struct
+                //let mut a = unsafe { core::ptr::read(&p) };     // moves data out, ensures it’s not dropped
+
+                //let dd: &dyn Custom = unsafe { transmute(p) };
+
+                *(_pp as *mut &mut dyn Custom) = (&mut p) as &mut dyn Custom;
+                ***/
             }
 
             // Initialize those fields we know C API won't touch (just in case)
@@ -136,14 +152,14 @@ impl VL53L5CX_Configuration {
     }
 }
 
-/**
-* @brief Beginning of preparing access to a single VL53L5CX sensor.
+/*
+* Access to a single VL53L5CX sensor.
 */
-pub struct VL53L5CX<P: Platform + 'static> {
+pub struct VL53L5CX<P: Custom + 'static> {
     p: P
 }
 
-impl<P: Platform + 'static> VL53L5CX<P> {
+impl<P: Custom + 'static> VL53L5CX<P> {
     /*
     * Instead of just creating this structure, this already pings the bus to see, whether there's
     * a suitable sensor out there.
@@ -156,7 +172,7 @@ impl<P: Platform + 'static> VL53L5CX<P> {
     }
 
     pub fn init(self) -> Result<State_HP_Idle> {
-        let uld = VL53L5CX_Configuration::init_with(/*move*/ self.p)?;
+        let uld = VL53L5CX_Configuration::init_with(self.p)?;
 
         Ok( State_HP_Idle::new(uld) )
     }
@@ -186,7 +202,7 @@ impl<P: Platform + 'static> VL53L5CX<P> {
 * Note:
 *   - Vendor's ULD C driver expects '(0xf0, 0x02)'.
 */
-fn vl53l5cx_ping<P : Platform>(pl: &mut P) -> CoreResult<(u8,u8),()> {
+fn vl53l5cx_ping<P : Custom>(pl: &mut P) -> CoreResult<(u8,u8),()> {
     let mut buf = [u8::MAX;2];
 
     pl.wr_bytes(0x7fff, &[0x00]);

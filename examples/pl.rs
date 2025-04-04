@@ -12,34 +12,43 @@ use core::cell::RefCell;
 use crate::uld::{
     DEFAULT_I2C_ADDR,
     I2cAddr,
-    Platform,
+    Custom,
 };
 
 const I2C_ADDR: I2cAddress = I2cAddress::SevenBit( DEFAULT_I2C_ADDR.as_7bit() );    // esp-hal address type
 
 /*
 */
-pub struct MyPlatform<'a> {
-    i2c: RefCell<I2c<'a, Blocking>>,
+pub struct MyPlatform {
+    i2c: RefCell<I2c<'static, Blocking>>
 }
 
 // Rust note: for the lifetime explanation, see:
 //  - "Lost in lifetimes" (answer)
 //      -> https://users.rust-lang.org/t/lost-with-lifetimes/82484/4?u=asko
 //
-impl<'a> MyPlatform<'a> {
+impl MyPlatform {
     #[allow(non_snake_case)]
-    pub fn new(i2c: I2c<'a,Blocking>) -> Self {
-        Self{ i2c: RefCell::new(i2c) }
+    pub fn new(i2c: RefCell<I2c<'static, Blocking>>) -> Self {
+        Self{ i2c }
     }
 
     fn with_i2c<R>(&mut self, f: impl FnOnce(&mut I2c<Blocking>) -> R) -> R {
-        let i2c = self.i2c.get_mut();
-        f(i2c)
+        let r = &mut self.i2c.borrow_mut();
+        f(r)
     }
 }
 
-impl Platform for MyPlatform<'_> {
+/* Do nothing on drop. This is needed because the 'lib' code, moving things to C structure, would
+* otherwise trigger a premature drop on 'I2c'.
+*/
+impl Drop for MyPlatform {
+    fn drop(&mut self) {
+        panic!("Platform dropped; don't like it");
+    }
+}
+
+impl Custom for MyPlatform {
     /*
     */
     fn rd_bytes(&mut self, index: u16, buf: &mut [u8]) {

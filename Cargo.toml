@@ -1,5 +1,5 @@
 [package]
-name = "just_b"   # name matters; shows in the parent 'Cargo.toml'
+name = "just_b"
 edition = "2024"
 rust-version = "1.85"
     # 1.85: needed for edition 2024
@@ -11,16 +11,14 @@ publish = false
 debug = 2
 
 [dependencies]
-defmt           = { version = "0.3.10", optional = true }
+defmt           = { version = "1.0.1", optional = true }
 
 #[dev-dependencies]
 # Rust provides no mechanism for conditional 'dev-dependencies'. Thus, we introduce them here.
-defmt-rtt       = { version = "0.4.1", optional = true }
+defmt-rtt       = { version = "1.0.0", optional = true }
 esp-println     = { version = "0.13.1", features = ["esp32c3"], optional = true }   # "defmt-espflash"
 
 [dev-dependencies]
-#embedded-test   = { version = "0.6.0", features = ["defmt"] }
-
 esp-backtrace   = { version = "0.15.1", features = ["exception-handler", "panic-handler", "esp32c3",
     # 7-Feb-25: 'esp-backtrace' DOES NOT ACT WELL with 'esp-println' and 'semihosting'; it keeps looping instead of
     #           terminating (thus, "semihosting" disabled; can be enabled for 'probe-rs', though).

@@ -48,15 +48,15 @@ all:
 
 # Working solution for either C3/C6, preferring 'probe-rs' (if it works).
 ifeq ($(TARGET),riscv32imc-unknown-none-elf)	# C3
-m3: m3-with-espflash
+m3-slim: m3-slim-with-espflash
 else
-m3: m3-with-probe-rs
+m3-slim: m3-slim-with-probe
 endif
 
-m3-slim:
+m3-slim-with-espflash:
 	EXAMPLE=m3 \
 	  FEATURES=$(FEATURES),run_with_espflash,distance_mm \
-	  $(REMAKE) --no-print-directory _build _run-with-espflash
+	  $(REMAKE) --no-print-directory _build _run-with-espflash-v4
 
 m3-slim-with-probe:
 	EXAMPLE=m3 \
@@ -70,6 +70,10 @@ _build:
 
 _run-with-espflash:
 	espflash flash --log-format defmt --monitor $(_OUT_EXAMPLE)
+
+# Note: needs 'espflash' 4.0.0 (-dev)
+_run-with-espflash-v4:
+	espflash flash --log-format defmt --output-format $(DEFMT_HOST_FMT) --monitor $(_OUT_EXAMPLE)
 
 _run-with-probe-rs:
 	probe-rs run --log-format $(DEFMT_HOST_FMT) $(_OUT_EXAMPLE)

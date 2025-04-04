@@ -22,7 +22,7 @@ use crate::uld_raw::{
 * @brief App provides, to talk to the I2C and do blocking delays; provides a mechanism to inform
 *       the platform about an I2C address change.
 */
-pub trait Platform {
+pub trait Custom {
     // provided by the app
     //
     fn rd_bytes(&mut self, index: u16, buf: &mut [u8]);
@@ -159,10 +159,10 @@ pub extern "C" fn VL53L5CX_WaitMs(pt: *mut VL53L5CX_Platform, time_ms: u32) -> u
 }
 
 pub(crate)  // open for 'set_i2c_address()' so that the I2C address can be changed, on the fly!!!
-fn with<T, F: Fn(&mut dyn Platform) -> T>(pt: *mut VL53L5CX_Platform, f: F) -> T {
+fn with<T, F: Fn(&mut dyn Custom) -> T>(pt: *mut VL53L5CX_Platform, f: F) -> T {
 
-    let x: &mut dyn Platform = {    // re-interpret what's in '*pt' as '&mut dyn Platform'
-        let pt: *mut &mut dyn Platform = pt as *mut c_void as _;
+    let x: &mut dyn Custom = {    // re-interpret what's in '*pt' as '&mut dyn Custom'
+        let pt: *mut &mut dyn Custom = pt as *mut c_void as _;
         unsafe{ *pt }
     };
 
